@@ -303,3 +303,10 @@ ggplot(dice_roll, aes(x=combo))+
 ## tables
 table(dice_roll$combo)
 prop.table(table(dice_roll$combo))
+
+## calculate density
+dice_roll_agg <- dice_roll %>% group_by(combo) %>% 
+  summarize(count=n())
+dice_roll_agg <- dice_roll_agg %>% mutate(
+  pct=count/sum(count)
+)

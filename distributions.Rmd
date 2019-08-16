@@ -1,0 +1,153 @@
+---
+title: "Distribution Exploration"
+output:
+  html_document:
+    df_print: paged
+---
+
+Exploring distributions and related probability concepts.
+
+```{r INITIAL}
+
+library(tidyverse)
+library(lubridate)
+library(scales)
+
+```
+
+## Normal
+
+Key concepts, using the Normal distribution as a starting point.
+
+### Generate Normal Distribution
+
+Generate a random set of numbers that follow a specified normal distribution.
+
+```{r GENERATE NORMAL}
+
+m <- 50
+std <- 10
+norm_01 <- rnorm(n=1000, mean=m, sd=std)
+```
+
+Normal distribution with:
+
+* Mean: `r m` 
+* Std. deviation: `r std`
+
+```{r VIEW NORMAL}
+
+plot(norm_01)
+hist(norm_01)
+boxplot(norm_01)
+
+```
+
+Convert to data frame use with ggplot and additional features therein. Get summary statistics.
+
+```{r NORM DATA FRAME}
+df_norm_01 <- data.frame(values=norm_01)
+
+summary(df_norm_01)
+print(paste0('Std dev: ', sd(df_norm_01$values)))
+```
+
+```{r NORM GGPLOT 1}
+
+ggplot(df_norm_01, aes(x=values))+geom_histogram(fill='grey')+
+  geom_vline(xintercept = mean(df_norm_01$values), color='green', linetype='dashed', size=1)+
+  geom_vline(xintercept = median(df_norm_01$values), color='blue', linetype='dotted')+
+  geom_vline(xintercept=quantile(df_norm_01$values, 0.25), color='purple')+
+  geom_vline(xintercept = quantile(df_norm_01$values, 0.75), color='purple')+
+  geom_vline(xintercept=mean(df_norm_01$values)-sd(df_norm_01$values), color='orange')+
+  geom_vline(xintercept=mean(df_norm_01$values)+sd(df_norm_01$values), color='orange')+
+  scale_y_continuous(expand=c(0,0))+
+  scale_x_continuous(expand=c(0,0))+
+  theme_classic()
+```
+
+* Green = mean
+* Blue = median
+* Purple = 25th and 75th percentiles
+* Orange = 1 std dev, above and below mean
+
+Convert histogram to density function, with probabilities on y-axis:
+
+```{r}
+df_norm_01 <- df_norm_01 %>% mutate(
+  prob=dnorm(values, mean=m, sd=std)
+)
+
+ggplot(df_norm_01, aes(x=values, y=prob))+geom_line()+
+  geom_vline(xintercept = mean(df_norm_01$values), color='green', linetype='dashed', size=1)+
+  geom_vline(xintercept = median(df_norm_01$values), color='blue', linetype='dotted')+
+  geom_vline(xintercept=quantile(df_norm_01$values, 0.25), color='purple')+
+  geom_vline(xintercept = quantile(df_norm_01$values, 0.75), color='purple')+
+  geom_vline(xintercept=mean(df_norm_01$values)-sd(df_norm_01$values), color='orange')+
+  geom_vline(xintercept=mean(df_norm_01$values)+sd(df_norm_01$values), color='orange')+
+  scale_y_continuous(labels=percent)+
+  theme_classic()
+
+```
+
+Plot the cumulative distrbution function for this data:
+
+* can be read as cumulative percentiles on the left
+
+```{r}
+plot(ecdf(df_norm_01$values))
+```
+
+Can create the same by applying pnorm() to the data and drawing with ggplot2:
+
+```{r}
+df_norm_01 <- df_norm_01 %>% mutate(
+  pctl = pnorm(values, mean=m, sd=std)
+)
+
+ggplot(df_norm_01, aes(x=values, y=pctl))+geom_line()+
+  geom_vline(xintercept = mean(df_norm_01$values), color='green', linetype='dashed', size=1)+
+  geom_vline(xintercept = median(df_norm_01$values), color='blue', linetype='dotted')+
+  geom_vline(xintercept=quantile(df_norm_01$values, 0.25), color='purple')+
+  geom_vline(xintercept = quantile(df_norm_01$values, 0.75), color='purple')+
+  geom_vline(xintercept=mean(df_norm_01$values)-sd(df_norm_01$values), color='orange')+
+  geom_vline(xintercept=mean(df_norm_01$values)+sd(df_norm_01$values), color='orange')+
+  scale_x_continuous(expand=c(0,0))+
+  scale_y_continuous(labels=percent, expand=c(0,0), limits=c(0,1))+
+  theme_classic()
+
+```
+
+### Probabilities
+
+What is the probability of value X as an outcome?
+
+```{r}
+options(scipen = 99)
+x <- 40
+dnorm(x=x, mean=m, sd=std)
+
+```
+
+A single number in a continous distribution, so the probability will be low.
+
+What is the probability of an outcome of X or lower?
+
+```{r}
+x <- mean(df_norm_01$values)-sd(df_norm_01$values)
+pnorm(q=x, mean=m, sd=std)
+
+```
+
+what is the probability of an outcome between X and Y?
+
+```{r}
+x <- x
+y <- mean(df_norm_01$values)+sd(df_norm_01$values)
+p_lower <- pnorm(q=x, mean=m, sd=std)
+p_upper <- pnorm(q=y, mean=m, sd=std, lower.tail=FALSE)
+pxy <- 1-(p_lower+p_upper)
+
+```
+
+Probability of an outcome between `r x` and `r y` is: `r pxy`.

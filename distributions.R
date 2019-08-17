@@ -333,7 +333,7 @@ ggplot(dice_roll_agg, aes(x=combo, y=pct))+geom_col()+
   scale_y_continuous(expand=c(0,0))+
   theme_classic()
 
-o## expected value calc ####
+## expected value calc ####
 ## simple: sum of row calculations
 sum(dice_roll_agg$combo*dice_roll_agg$pct)
 ## verify: create new field

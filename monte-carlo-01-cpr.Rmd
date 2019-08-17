@@ -1,0 +1,143 @@
+---
+title: "Monte Carlo with CPR data"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r SETUP}
+## LIBRARIES
+
+library(tidyverse)
+library(scales)
+
+```
+
+Attempting to use Monte Carlo simulation methods to set benchmark for cPR metrics.
+
+## Monte Carlo Process
+
+1. Identify the outcome you want to evaluate for decision-making
+2. Identify the process that generates the outcome
+3. Identify the key variables in the process
+4. Identify the distribution of values for each variable
+5. Identify any interactions or constraints between the variables
+6. Assemble data for each variable, based on distributions, interactions, constraints 
+6. Run simulations based on the above
+7. Collect and analyse results
+
+## 1. Outcome used for decision
+
+Appropriate benchmark for a key metric.
+
+Example: social mentions
+
+## 2. Process that generates outcome
+
+Comparison to historical data of related titles.
+
+Example: FIFA, previous years
+
+## 3. Key variables
+
+Social mentions per week from title release
+
+## 4. Distribution of values
+
+Distribution for each week is established by range of values from previous titles.
+
+Can assume a uniform distribution between the min and max for previous.
+
+Since discrete, can use 'sample'
+
+## 5. Interactions or constraints
+
+None
+
+## 6. Collect data for FIFA social mentions
+
+```{r COLLECT DATA}
+
+mc_data <- read_csv('data/cpr-selected.csv')
+mc_data <- mc_data %>% filter(grepl('FIFA', title))
+mc_data <- mc_data %>% select(title, week, social_mentions)
+mc_data <- mc_data %>% filter(week <= 0)
+
+```
+
+```{r VIEW DATA}
+
+ggplot(mc_data, aes(x=week, y=social_mentions, color=title))+geom_line()
+```
+
+Need to do some clean-up. Take a closer look at what is going on.
+
+```{r EXPLORE CLEAN}
+table(mc_data$title)
+mc_summary <- mc_data %>% group_by(title) %>% summarize(sm=sum(social_mentions))
+mc_summary
+#View(mc_summary)
+
+```
+
+A couple of title years don't have data. Filter out by removing rows with little/no social mentions.
+
+Note: this still includes FIFA 20, only though only partial year. Can still be useful for setting parameters during the weeks the data is present. (As long as it doesn't have '0' for missing weeks.)
+
+```{r FILTER}
+mc_data <- mc_data %>% filter(social_mentions>10)
+ggplot(mc_data, aes(x=week, y=social_mentions, color=title))+geom_line()+
+  scale_y_continuous(labels=comma)+theme_classic()
+
+```
+
+Now we have data that we can work with. Need to SPREAD titles to identify min and max for each week.
+
+```{r SPREAD}
+
+mc_spread <- mc_data %>% spread(title, social_mentions)
+mc_spread <- mc_spread %>% mutate(
+  min_sm=pmin(`FIFA 17`,`FIFA 18`,`FIFA 19`,`FIFA 20`, na.rm=TRUE),
+  max_sm=pmax(`FIFA 17`,`FIFA 18`,`FIFA 19`,`FIFA 20`, na.rm=TRUE)
+)
+```
+
+Simulate data
+
+```{r SIM}
+## get data frame for week numbers to combine later
+mc_week <- data.frame(week=mc_spread$week)
+## set empty variable that will hold all results
+sm_sim_all <- NULL
+## CREATE OUTER LOOP TO COMBINE ALL THE INDIVIDUAL SIMS
+iter <- 10 ## set number of iterations
+for(i in 1:iter){
+  sm_sim <- NULL ## set empty variable for each iteration
+  ## loop to create one simulated data point for each week
+for(s in 1:nrow(mc_spread)){ 
+  ## simulated data is based on sample btwn min and max of given week
+  sm <- sample(x=mc_spread$min_sm[s]:mc_spread$max_sm[s], size=1)
+  ## bind each week in iteration
+  sm_sim <- bind_rows(sm_sim, data.frame(sm))
+}
+  ## bind iteration to week numbers
+sm_sim <- bind_cols(mc_week, sm_sim)
+  ## add sim iteration identifier (start at 10 to avoid 1,2,3...)
+sm_sim$sim <- paste0('sim',i+9)
+  ## bind iteration set to prev iterations
+sm_sim_all <- bind_rows(sm_sim_all, sm_sim)
+}
+
+```
+
+```{r VIEW SIM}
+chart.title <- 'Simulations of FIFA Social Mentions'
+ggplot(sm_sim_all, aes(x=week, y=sm, color=sim))+geom_line()+
+  scale_y_continuous(labels=comma)+
+  theme_classic()+ggtitle(chart.title)
+  
+```
+
+Simulated social mentions, based on previous weekly patterns.
+
+No. of simulations: `r iter`

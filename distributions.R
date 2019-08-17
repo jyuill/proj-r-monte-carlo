@@ -279,8 +279,16 @@ dice_roll <- dice_roll %>% mutate(
 )
 
 ## histogram, with breaks set for x axis
-ggplot(dice_roll, aes(x=combo))+
-  geom_histogram()+
+## BUT histogram not applicable to limited set of DISCRETE VALUES
+# ggplot(dice_roll, aes(x=combo))+
+#   geom_histogram()+
+#   scale_x_continuous(breaks = 2:12, expand=c(0,0))+
+#   scale_y_continuous(expand=c(0,0))+
+#   theme_classic()
+
+## BAR with count ####
+## or aggregate and chart (as below)
+ggplot(dice_roll, aes(x=combo))+geom_bar(stat='count')+
   scale_x_continuous(breaks = 2:12, expand=c(0,0))+
   scale_y_continuous(expand=c(0,0))+
   theme_classic()
@@ -293,7 +301,8 @@ ggplot(dice_roll, aes(x=combo))+
   scale_x_continuous(breaks = 2:12, expand=c(0,0))+
   scale_y_continuous(expand=c(0,0))+
   theme_classic()
-## this works, though:
+## this works, though: EVEN THOUGH NOT CONTINUOUS
+## should be probability MASS function
 ggplot(dice_roll, aes(x=combo))+
   geom_density()+
   scale_x_continuous(breaks = 2:12, expand=c(0,0))+
@@ -301,12 +310,35 @@ ggplot(dice_roll, aes(x=combo))+
   theme_classic()
 
 ## tables
+## counts
 table(dice_roll$combo)
+## percent
 prop.table(table(dice_roll$combo))
 
-## calculate density
+## MASS function calc ####
 dice_roll_agg <- dice_roll %>% group_by(combo) %>% 
   summarize(count=n())
 dice_roll_agg <- dice_roll_agg %>% mutate(
   pct=count/sum(count)
 )
+
+## counts
+ggplot(dice_roll_agg, aes(x=combo, y=count))+geom_col()+
+  scale_x_continuous(breaks = 2:12, expand=c(0,0))+
+  scale_y_continuous(expand=c(0,0))+
+  theme_classic()
+## percent
+ggplot(dice_roll_agg, aes(x=combo, y=pct))+geom_col()+
+  scale_x_continuous(breaks = 2:12, expand=c(0,0))+
+  scale_y_continuous(expand=c(0,0))+
+  theme_classic()
+
+o## expected value calc ####
+## simple: sum of row calculations
+sum(dice_roll_agg$combo*dice_roll_agg$pct)
+## verify: create new field
+dice_roll_agg <- dice_roll_agg %>% mutate(
+  exp=combo*pct
+)
+## sum new field
+sum(dice_roll_agg$exp)

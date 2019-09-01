@@ -5,9 +5,12 @@ output:
     df_print: paged
 ---
 
-Exploring distributions and related probability concepts.
+## Exploring distributions and related probability concepts {.tabset}
 
-```{r INITIAL}
+```{r INITIAL, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,
+                      message=FALSE,
+                      warning=FALSE)
 
 library(tidyverse)
 library(lubridate)
@@ -15,11 +18,11 @@ library(scales)
 
 ```
 
-## Normal
+### Normal
 
 Key concepts, using the Normal distribution as a starting point.
 
-### Generate Normal Distribution
+#### Generate Normal Distribution
 
 Generate a random set of numbers that follow a specified normal distribution.
 
@@ -118,11 +121,11 @@ ggplot(df_norm_01, aes(x=values, y=pctl))+geom_line()+
 
 ```
 
-### Probabilities
+#### Probabilities
 
 What is the probability of value X as an outcome?
 
-```{r}
+```{r PROB 1}
 options(scipen = 99)
 x <- 40
 dnorm(x=x, mean=m, sd=std)
@@ -133,7 +136,7 @@ A single number in a continous distribution, so the probability will be low.
 
 What is the probability of an outcome of X or lower?
 
-```{r}
+```{r PROB 2}
 x <- mean(df_norm_01$values)-sd(df_norm_01$values)
 pnorm(q=x, mean=m, sd=std)
 
@@ -141,7 +144,7 @@ pnorm(q=x, mean=m, sd=std)
 
 what is the probability of an outcome between X and Y?
 
-```{r}
+```{r PROB 3}
 x <- x
 y <- mean(df_norm_01$values)+sd(df_norm_01$values)
 p_lower <- pnorm(q=x, mean=m, sd=std)
@@ -151,3 +154,91 @@ pxy <- 1-(p_lower+p_upper)
 ```
 
 Probability of an outcome between `r x` and `r y` is: `r pxy`.
+
+### Gamma distribution
+
+Gamma is actually a family of distributions. It seems to offer better replication of skewed distributions than Poisson.
+
+From <https://www.rocscience.com/help/swedge/swedge/Gamma_Distribution.htm>:
+
+* The Gamma distribution is widely used in engineering, science, and business, to model continuous variables that are always positive and have skewed distributions.
+* a (alpha) is known as the shape parameter, while b (beta) is referred to as the scale parameter.
+* b has the effect of stretching or compressing the range of the Gamma distribution. A Gamma distribution with b = 1 is known as the standard Gamma distribution.
+
+The Gamma distribution represents a family of shapes. As suggested by its name, a controls the shape of the family of distributions. The fundamental shapes are characterized by the following values of a:
+
+Case I (a < 1)
+
+* When a < 1, the Gamma distribution is exponentially shaped and asymptotic to both the vertical and horizontal axes.
+
+Case II (a = 1)
+
+* Gamma distribution with shape parameter a = 1 and scale parameter b is the same as an exponential distribution of scale parameter (or mean) b.
+
+Case III (a > 1)
+
+* When a is greater than one, Gamma distribution assumes a mounded (unimodal), skewed shape. Skewness reduces as the value of a increases.
+
+There are two parameters and two variations on the parameter combinations. For simplicity, focus here is on:
+
+* shape (a above, sometimes k) -> determines skew
+* scale (b above, sometimes theta) -> determines stretch/compression of the range 
+
+Some gamma distribution examples:
+
+*(still can't figure out how some combinations of shape and scale yield a density of >1 at 0)*
+
+```{r GAMMA DIST}
+
+## function to create gamma samples and density
+fGammavardens <- function(num, sh, sc){
+  shsc <- paste0('gamma','-',sh,':', sc)
+  cat(paste0('shape=',sh,' rate=', sc))
+  datagam <- rgamma(n=1000, shape=sh, scale=sc)
+  plot.hist <- hist(datagam)
+  #plot.hist <- ggplot(data.frame(datagam), aes(x=datagam))+geom_histogram()
+  
+  datagam <- round(datagam, 3)
+  datagam <- unique(datagam)
+  dengam <- dgamma(datagam, shape=sh, scale=sc)
+  gam <- data.frame(datagam, dengam, ksc=shsc)
+  plot.dense <- plot(data=gam, dengam~datagam)
+  #plot.dense <- ggplot(gam, aes(x=datagam, y=dengam))+geom_line()+theme_classic()
+  
+  list(plot.hist, plot.dense)
+  return(gam)
+}
+
+gam_all <- data.frame()
+
+gamsample <- fGammavardens(1000, 1, 0.5)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 1, 1)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 1, 2)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 2, 0.5)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 2, 2)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 3, 0.5)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 3, 1)
+gam_all <- bind_rows(gam_all, gamsample)
+
+gamsample <- fGammavardens(1000, 5, 1)
+gam_all <- bind_rows(gam_all, gamsample)
+
+
+gam_all <- gam_all %>% distinct(datagam, .keep_all = TRUE)
+ggplot(gam_all, aes(x=datagam, y=dengam, color=ksc))+
+  geom_line()
+
+```
+

@@ -1,0 +1,163 @@
+---
+title: 'Sim Experiment: weekly forecast'
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(tidyverse)
+library(scales)
+
+options(scipen=999)
+
+```
+
+## Intro
+
+Experimenting with using simulation to create a week-by-week forecast, based on historical data.
+
+### 1. Generate some example historical data
+
+## basic sample data
+
+```{r EXAMPLE}
+set.seed(2019)
+
+## generate weeks
+wk_start <- -12
+wk <- seq(from=wk_start, to=0, by=1)
+
+## generate sample with increase
+c01 <- rnorm(n=length(wk), mean=1000, sd=200)
+c02 <- rnorm(n=length(wk), mean=1200, sd=300)
+
+comparison <- data.frame(week=wk,
+                         comp01=c01,
+                         comp02=c02)
+
+ggplot(comparison, aes(x=wk, y=comp01))+geom_line(aes(color='comp01'))+
+  geom_line(y=comparison$comp02, aes(color='comp02'))+
+  scale_y_continuous(labels=comma, limits=c(0,max(comparison$comp02)), expand=c(0,0))+
+  scale_x_continuous(labels=comma, expand=c(0,0) )+
+  theme_classic()
+
+```
+
+## adjust for weeks
+
+```{r}
+comparison <- comparison %>% mutate(
+  comp01a=comp01*(1/abs(wk)),
+  comp02a=comp02*(1/abs(wk))
+)
+
+comparison <- comparison %>% mutate(
+  comp01a = ifelse(comp01a==Inf, comp01*2, comp01a),
+  comp02a = ifelse(comp02a==Inf, comp02*2, comp02a)
+)
+
+ggplot(comparison, aes(x=wk, y=comp01a))+geom_line(aes(color='comp01a'))+
+  geom_line(y=comparison$comp02a, aes(color='comp02a'))+
+  scale_y_continuous(labels=comma, limits=c(0,max(comparison$comp02a)), expand=c(0,0))+
+  scale_x_continuous(labels=comma, expand=c(0,0) )+
+  theme_classic()
+
+```
+
+### 2. Use historical example to create new sim data
+
+```{r}
+## gather comparison data to facilitate sample comparison
+comp_orig <- comparison %>% select(week, comp01a, comp02a) %>% gather(
+  key=sample, value=amount, -week
+)
+num_sample <- 500
+samp_data_all <- data.frame()
+
+for(s in 1:num_sample){
+#  for each row in comparison table, get a sample of data points that are 
+#  randomly chosen from between comp01a and comp02a with maybe some leeway either side
+  for(w in 1:length(wk)){
+    dist <- c(comparison$comp01a[w],comparison$comp02a[w])
+    samp_data <- data.frame(week=wk[w], 
+                            sample=paste0('s',s), 
+                            amount=runif(n=1, min=min(dist), max=max(dist)),
+                            stringsAsFactors = FALSE)
+    samp_data_all <- bind_rows(samp_data_all, samp_data) 
+  }
+}
+
+```
+
+Combine sim data with original comparisons
+
+```{r}
+comp_all <- bind_rows(comp_orig, samp_data_all)
+```
+
+Visualize results
+
+```{r}
+## line chart with original comparisons highlighted in larger size
+ggplot(data=comp_orig, aes(x=week, y=amount, color=sample))+geom_line(size=1.2, linetype='dashed')+
+   geom_line(data=comp_all, aes(x=week, y=amount, color=sample))+
+  scale_y_continuous(labels=comma, limits=c(0,max(comparison$comp02a)), expand=c(0,0))+
+  scale_x_continuous(labels=comma, expand=c(0,0) )+
+  theme_classic()+theme(legend.position = 'none')
+```
+
+## 3. Analyze totals, means and distributions
+
+
+
+```{r}
+comp_summary <- comp_all %>% group_by(sample) %>% summarize(
+  ttl=sum(amount),
+  mean=mean(amount),
+  median=median(amount),
+  stddev=sd(amount)
+)
+```
+
+```{r}
+ggplot(comp_summary, aes(x=ttl))+geom_histogram()+
+  geom_vline(aes(xintercept=comp_summary$ttl[comp_summary$sample=='comp01a']), linetype='dotted')+
+  geom_vline(aes(xintercept=comp_summary$ttl[comp_summary$sample=='comp02a']), linetype='dotted')
+```
+
+(lines represent totals for original comparison data sets)
+
+```{r}
+summary(comp_summary$ttl)
+
+msd2plus <- mean(comp_summary$ttl)+(2*sd(comp_summary$ttl))
+msd2min <- mean(comp_summary$ttl)-(2*sd(comp_summary$ttl))
+
+msd05 <- qnorm(p=.025, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
+msd95 <- qnorm(p=.025, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl), lower.tail=FALSE)
+
+```
+
+95% chance that total will be between: `r msd2min` and `r msd2plus`
+
+or 95% chance between `r msd05` and `r msd95`
+
+```{r, echo=TRUE}
+## what amount is at pth percentile?
+qnorm(p=0.5, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
+quantile(comp_summary$ttl, 0.5)
+```
+
+```{r, echo=TRUE}
+
+## probability of exactly x
+dnorm(x=5325, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
+## probability of q or less
+pnorm(q=5325, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
+```
+

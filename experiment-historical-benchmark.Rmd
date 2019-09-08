@@ -21,9 +21,15 @@ options(scipen=999)
 
 Experimenting with using simulation to create a week-by-week forecast, based on historical data.
 
+### Sampling Method
+
+Use sampling of probabilities based on historical data to create a forecast for benchmarks.
+
 ### 1. Generate some example historical data
 
-## basic sample data
+#### basic sample data
+
+* for each metric, get numbers for each week picked randomly from normal distribution with set mean and sd 
 
 ```{r EXAMPLE}
 set.seed(2019)
@@ -33,8 +39,13 @@ wk_start <- -12
 wk <- seq(from=wk_start, to=0, by=1)
 
 ## generate sample with increase
-c01 <- rnorm(n=length(wk), mean=1000, sd=200)
-c02 <- rnorm(n=length(wk), mean=1200, sd=300)
+m1 <- 1000
+sd1 <- 200
+c01 <- rnorm(n=length(wk), mean=m1, sd=sd1)
+
+m2 <- 1200
+sd2 <- 300
+c02 <- rnorm(n=length(wk), mean=m2, sd=sd2)
 
 comparison <- data.frame(week=wk,
                          comp01=c01,
@@ -48,9 +59,19 @@ ggplot(comparison, aes(x=wk, y=comp01))+geom_line(aes(color='comp01'))+
 
 ```
 
-## adjust for weeks
+Results of data sampling for normal distribution:
+
+* comp01: mean=`r m1`, sd=`r sd1`
+* comp02: mean=`r m2`, sd=`r sd2`
+
+#### adjust for weeks
+ 
+* Activity starts slow and ramps up to week 0
+* Model this by multiplying value for each week by 1/abs(w), where 'w' is week number (absolute value needed because weeks are negative)
+* Since last week is 0, ratio calc will give infinity (Inf) so replace with 2x existing value
 
 ```{r}
+## divide 
 comparison <- comparison %>% mutate(
   comp01a=comp01*(1/abs(wk)),
   comp02a=comp02*(1/abs(wk))
@@ -80,19 +101,25 @@ num_sample <- 500
 samp_data_all <- data.frame()
 
 for(s in 1:num_sample){
-#  for each row in comparison table, get a sample of data points that are 
-#  randomly chosen from between comp01a and comp02a with maybe some leeway either side
+#  for each row in comparison table, get a sample of data points
+#  randomly chosen from between comp01a and comp02a with leeway on either side
+  leewaydown <- 0.9
+  leewayup <- 1.1
   for(w in 1:length(wk)){
     dist <- c(comparison$comp01a[w],comparison$comp02a[w])
     samp_data <- data.frame(week=wk[w], 
                             sample=paste0('s',s), 
-                            amount=runif(n=1, min=min(dist), max=max(dist)),
+                            amount=runif(n=1, min=min(dist)*leewaydown, max=max(dist)*leewayup),
                             stringsAsFactors = FALSE)
     samp_data_all <- bind_rows(samp_data_all, samp_data) 
   }
 }
 
 ```
+
+* for each week, get a randomly sampled value based on uniform dist between the existing historical values
+* with some leeway allowed: `r leewaydown` of lower value, `r leewayup` of upper value
+* number of samples: `r num_sample`
 
 Combine sim data with original comparisons
 
@@ -111,9 +138,7 @@ ggplot(data=comp_orig, aes(x=week, y=amount, color=sample))+geom_line(size=1.2, 
   theme_classic()+theme(legend.position = 'none')
 ```
 
-## 3. Analyze totals, means and distributions
-
-
+### 3. Analyze totals, means and distributions
 
 ```{r}
 comp_summary <- comp_all %>% group_by(sample) %>% summarize(
@@ -126,11 +151,17 @@ comp_summary <- comp_all %>% group_by(sample) %>% summarize(
 
 ```{r}
 ggplot(comp_summary, aes(x=ttl))+geom_histogram()+
-  geom_vline(aes(xintercept=comp_summary$ttl[comp_summary$sample=='comp01a']), linetype='dotted')+
-  geom_vline(aes(xintercept=comp_summary$ttl[comp_summary$sample=='comp02a']), linetype='dotted')
+  geom_vline(aes(xintercept=comp_summary$ttl[comp_summary$sample=='comp01a']), linetype='dotted', color='blue')+
+  geom_vline(aes(xintercept=comp_summary$ttl[comp_summary$sample=='comp02a']), linetype='dotted', color='blue')+
+  geom_vline(aes(xintercept=mean(comp_summary$ttl)), linetype='dashed', color='green')+
+  geom_vline(aes(xintercept=mean(comp_summary$ttl)-(2*sd(comp_summary$ttl))), linetype='dashed', color='red')+
+  geom_vline(aes(xintercept=mean(comp_summary$ttl)+(2*sd(comp_summary$ttl))), linetype='dashed', color='red')+
+  theme_classic()
 ```
 
-(lines represent totals for original comparison data sets)
+(green line is average) <br />
+(blue lines represent totals for original comparison data sets)<br />
+(red lines represent 2 sd above/below mean)
 
 ```{r}
 summary(comp_summary$ttl)
@@ -143,9 +174,13 @@ msd95 <- qnorm(p=.025, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl), low
 
 ```
 
-95% chance that total will be between: `r msd2min` and `r msd2plus`
+Based on sample distribution:
 
-or 95% chance between `r msd05` and `r msd95`
+* 95% chance total will be between: `r msd2min` and `r msd2plus`
+
+Theoretically, based on normal distribution with same mean and sd:
+
+* 95% chance between `r msd05` and `r msd95`
 
 ```{r, echo=TRUE}
 ## what amount is at pth percentile?
@@ -156,8 +191,70 @@ quantile(comp_summary$ttl, 0.5)
 ```{r, echo=TRUE}
 
 ## probability of exactly x
-dnorm(x=5325, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
+dnorm(x=mean(comp_summary$ttl), mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
 ## probability of q or less
-pnorm(q=5325, mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
+pnorm(q=mean(comp_summary$ttl), mean=mean(comp_summary$ttl), sd=sd(comp_summary$ttl))
 ```
 
+### Smoothing Method
+
+Similar to what we are currently using: build a model based on smoothing of historical references
+
+### 1. Apply smoothed line to chart
+
+* need to remove the 'color' parameter that differentiates the two comparison sets in order to create one smooth line (otherwise, will show smooth line for each comparison set)
+
+```{r}
+ggplot(comp_orig, aes(x=week, y=amount))+geom_point()+
+  geom_smooth(method='loess')+
+  scale_y_continuous(labels=comma, expand=c(0,0))+
+  scale_x_continuous(labels=comma, expand=c(0,0) )+
+  theme_classic()
+
+```
+
+### 2. Create predictive model based on smoothing
+
+```{r}
+
+model_sm <- loess(amount~week, data=comp_orig)
+summary(model_sm)
+
+predict_sm <- predict(model_sm, data.frame(week=wk))
+
+predict_sm_df <- data.frame(week=wk,
+                            sample='model',
+                            amount=predict_sm, stringsAsFactors = FALSE)
+
+## linear model for comparison
+# model_lm <- lm(amount~week, data=comp_orig)
+# summary(model_lm)
+# predict(model_lm, data.frame(week=-12), interval='confidence')
+# predict(model_lm, data.frame(week=-12), interval='prediction')
+# pred_lm <- predict(model_lm, data.frame(week=wk), interval='confidence')
+
+```
+
+Add model predictions to new data frame, with original historical data
+
+```{r}
+comp_model <- bind_rows(comp_orig, predict_sm_df)
+
+ggplot(comp_model, aes(x=week, y=amount, color=sample))+geom_line()+
+  geom_line(data=predict_sm_df, aes(x=week, y=amount), size=1.2)+
+  theme_classic()
+  
+```
+
+### 3. Check total amount from model
+
+* Compare to simulation mean of `r mean(comp_summary$ttl)`
+
+```{r}
+sum(predict_sm_df$amount)
+
+```
+
+### 4. Get confidence intervals for loess prediction
+
+(doable but somewhat tricky...for another time)

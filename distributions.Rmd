@@ -155,7 +155,7 @@ pxy <- 1-(p_lower+p_upper)
 
 Probability of an outcome between `r x` and `r y` is: `r pxy`.
 
-### Gamma distribution
+### Gamma family
 
 Gamma is actually a family of distributions. It seems to offer better replication of skewed distributions than Poisson.
 
@@ -182,11 +182,15 @@ Case III (a > 1)
 There are two parameters and two variations on the parameter combinations. For simplicity, focus here is on:
 
 * shape (a above, sometimes k) -> determines skew
-* scale (b above, sometimes theta) -> determines stretch/compression of the range 
+* scale (b above, sometimes theta) -> determines stretch/compression of the range (can also use rate which equals 1/scale)
 
 Some gamma distribution examples:
 
-*(still can't figure out how some combinations of shape and scale yield a density of >1 at 0)*
+**(what does it mean when probability density >1 ???)**
+
+1. Do not confuse 'probability density' with probability
+2. Calculus
+3. In practical terms, it can be interpreted as something like "at really small intervals, there is a high amount of density (frequency) here, *relative* to the overall distribution of values, and as a result some values have frequency of (close to) 0." 
 
 ```{r GAMMA DIST}
 
@@ -242,3 +246,189 @@ ggplot(gam_all, aes(x=datagam, y=dengam, color=ksc))+
 
 ```
 
+### Exponential
+
+As noted above, this is part of gamma. Treated here separately for additional exploration.
+
+Inspired by info here:
+https://web.stanford.edu/class/bios221/labs/simulation/Lab_3_simulation.html 
+
+Exponential distribution functions:
+
+* dexp, pexp, qexp, rexp
+
+Because it is specific type of distribution (part of the gamma family), it has specific parameters (I guess). For rexp:
+
+* 'n' appears to be equivalent to 'shape'; looks like '1' might be min value
+* 'rate' corresponds to 1/scale in gamma distribution
+
+```{r}
+reps <- 5000
+nexps <- 1 ## 1=full exponential; 2 highly right skewed; 20 almost normal
+rate <- 0.1
+set.seed(2019)
+x1 <- replicate(n=reps, sum(rexp(n=nexps, rate=rate)))
+```
+
+Visualize results
+
+```{r, echo=TRUE}
+ggplot(data.frame(x1), aes(x=x1))+
+  geom_histogram(aes(y=..density..))+theme_classic()
+
+ggplot(data.frame(x1), aes(x=x1))+
+  geom_density()+theme_classic()
+
+```
+
+With comparison to theorectical distribution
+
+```{r, echo=TRUE}
+ggplot(data.frame(x1), aes(x=x1))+
+  geom_histogram(aes(y=..density..))+
+  stat_function(fun=function(x)dgamma(x, shape=nexps, scale=1/rate), color='red', size=1)+
+  theme_classic()
+```
+
+### Beta
+
+Beta has two required parameters and one optional:
+
+* shape1
+* shape2
+* ncp: non-centrality (optional)
+
+Seems as though:
+
+* shape1 < 1 < shape2: right skew
+* shape1 > 1 > shape2: left skew equivalent to right skew on same values swapped
+* strength of skew generally reflective of ratio of higher shape to lower
+* shape1, shape2 = 1: pretty much uniform
+* shape1, shape2 = 3+: approaches normality
+
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 0.25
+sh2 <- 4
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density(color='yellow', size=1)
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 0.25
+sh2 <- 1
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 0.5
+sh2 <- 1
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 0.5
+sh2 <- 5
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 1
+sh2 <- 1
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 1
+sh2 <- 2
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 2
+sh2 <- 1
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+```{r, echo=TRUE, fig.height=4, fig.width=4}
+num_sample <- 1000
+sh1 <- 5
+sh2 <- 5
+ggplot(data.frame(rb=rbeta(n=num_sample, shape1=sh1, shape2 = sh2)), aes(x=rb))+geom_histogram(aes(y=..density..))+
+  geom_density()
+```
+
+Duplicate beta distribution example for a/b test from <https://www.countbayesie.com/blog/2015/3/3/6-amazing-trick-with-monte-carlo-simulations>
+
+For distribution of each test:
+
+* shape1 = # of conversions
+* shape2 = # not converted 
+* peak of curve is 
+
+```{r, echo=TRUE, fig.height=4, fig.width=6}
+num_sample <- 50000
+
+# a test
+convert <- 20
+notconvert <- 100
+acr <- convert/sum(convert, notconvert)
+
+a <- rbeta(n=num_sample, shape1=convert, shape2=notconvert)
+ad <- density(a)
+#plot(ad)
+
+# b test
+convert <- 38
+notconvert <- 110
+bcr <- convert/sum(convert, notconvert)
+b <- rbeta(n=num_sample, shape1=convert, shape2=notconvert)
+bd <- density(b)
+#plot(bd)
+
+abd <- data.frame(ax=ad$x,
+                  ay=ad$y,
+                  bx=bd$x,
+                  by=bd$y)
+
+ggplot(abd)+geom_line(aes(x=ax, y=ay), color='blue')+
+  geom_line(aes(x=bx, y=by), color='red')+
+  scale_x_continuous(limits=c(0,1))+
+  theme_classic()
+
+## alternate approach to organizing data for display (tidy)
+ad <- data.frame(test='a',
+                  x=ad$x,
+                  y=ad$y
+                  )
+bd <- data.frame(test='b',
+                 x=bd$x,
+                 y=bd$y)
+abd <- bind_rows(ad, bd)
+
+ggplot(abd, aes(x=x, y=y, color=test))+geom_line()+
+  geom_vline(xintercept=acr, linetype='dashed')+
+  geom_vline(xintercept=bcr, linetype='dashed')+
+  scale_x_continuous(limits=c(0,1))+
+  theme_classic()
+```
+
+Stats from a/b test:
+
+* A conversion rate: `r acr`
+* B conversion rate: `r bcr`
+
+Conversion rates very close to peak probability in chart (x-axis).

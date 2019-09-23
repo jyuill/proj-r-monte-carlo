@@ -242,6 +242,8 @@ comp_model <- bind_rows(comp_orig, predict_sm_df)
 
 ggplot(comp_model, aes(x=week, y=amount, color=sample))+geom_line()+
   geom_line(data=predict_sm_df, aes(x=week, y=amount), size=1.2)+
+  scale_y_continuous(labels=comma, expand=c(0,0))+
+  scale_x_continuous(labels=comma, expand=c(0,0))+
   theme_classic()
   
 ```

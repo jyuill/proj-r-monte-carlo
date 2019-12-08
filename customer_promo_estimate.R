@@ -48,14 +48,19 @@ sum(cust_est$Revenue)
 sum(cust_est$rev_est)
 
 ## use above process and create a loop for multiple simulations
+## add new function with wider spread for some variables
+sd_estw <- 0.2
+fdistw <- function(x) {
+  x*rnorm(mean=1, sd=sd_estw, n=1)
+}
 cust_est_sim <- data.frame()
-sims <- 200
+sims <- 2000
 for(sim in 1:sims){
   ## apply function to each row to create new variable with random normal dist
   cust_est$epc_est <- apply(cust_est[,'Exp_promo_convert'], MARGIN=1, FUN=fdist)
   ## set C3 prev title to 1
   cust_est[cust_est$Prod=='C3 (prev title pattern)','epc_est'] <- 1
-  cust_est$arpu_future_est <- apply(cust_est[,'ARPU_Future'], MARGIN=1, FUN=fdist) 
+  cust_est$arpu_future_est <- apply(cust_est[,'ARPU_Future'], MARGIN=1, FUN=fdistw) 
   cust_est$arpu_promo_est <- apply(cust_est[,'ARPU_promo'], MARGIN=1, FUN=fdist)
   cust_est <- cust_est %>% mutate(
     rev_est=Customers*epc_est*arpu_future_est*arpu_promo_est

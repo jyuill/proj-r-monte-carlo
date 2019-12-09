@@ -98,4 +98,6 @@ rev_sim_temp <- data.frame(rev_dist=rev_sim$rev_est,
 rev_dist_compare <- bind_rows(rev_dist_compare, rev_sim_temp)
 ## plot compare
 ggplot(rev_dist_compare, aes(x=rev_dist, fill=entity))+geom_histogram(alpha=0.5, position='identity')+
-  scale_x_continuous(labels=comma)
+  scale_x_continuous(labels=comma)+
+  geom_vline(xintercept = mean(orig_rev_dist$orig_rev_dist))+
+  geom_vline(xintercept= mean(rev_sim$rev_est))

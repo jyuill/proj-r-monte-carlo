@@ -77,3 +77,25 @@ ggplot(rev_sim, aes(x=rev_est))+geom_histogram()+
   scale_x_continuous(labels=comma)
 
 summary(rev_sim$rev_est)
+## compare to random dist of original estimate
+orig_rev_est <- sum(cust$Revenue)
+orig_rev_est
+orig_rev_dist <- rnorm(mean=orig_rev_est, sd=orig_rev_est*sd_est, n=2000)
+orig_rev_dist <- data.frame(orig_rev_dist)
+summary(orig_rev_dist$orig_rev_dist)
+
+## plot 
+ggplot(orig_rev_dist, aes(x=orig_rev_dist))+geom_histogram()
+## combine plots
+rev_dist_compare <- orig_rev_dist %>% mutate(
+  entity='orig'
+) %>% rename(
+  rev_dist = orig_rev_dist
+)
+rev_sim_temp <- data.frame(rev_dist=rev_sim$rev_est,
+                           entity='sim'
+)
+rev_dist_compare <- bind_rows(rev_dist_compare, rev_sim_temp)
+## plot compare
+ggplot(rev_dist_compare, aes(x=rev_dist, fill=entity))+geom_histogram(alpha=0.5, position='identity')+
+  scale_x_continuous(labels=comma)

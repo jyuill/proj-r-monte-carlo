@@ -155,6 +155,108 @@ pxy <- 1-(p_lower+p_upper)
 
 Probability of an outcome between `r x` and `r y` is: `r pxy`.
 
+### Poisson
+
+* for discrete random variable to determine probability of x occurences of an event over specific interval of time
+* works best with small number of events (10 or less) in small time interval (1 or less)
+* at smaller valuse of lambda (<10), has strong right skew
+* at larger values of lambda, approaches normal - probably because at smaller values, there is more potential upside than downside, since can't be negative 
+
+#### Generate Poisson
+
+```{r}
+nn <- 10000
+lmb <- 5
+pois_01 <- rpois(n=nn, lambda=lmb)
+hist(pois_01)
+```
+
+#### Probability distribution
+
+```{r}
+xx <- c(1:max(pois_01))
+lmb <- 5
+pois_02 <- dpois(x=xx, lambda=lmb)
+plot(pois_02)
+```
+
+#### Example
+
+https://www.youtube.com/watch?v=m_c1nIC2Dfo 
+
+* website gets average 10 visits per minute
+
+```{r}
+nn <- 1000
+lmb <- 10
+wpois <- rpois(n=nn, lambda = lmb)
+hist(wpois)
+
+xx <- c(1:20)
+wpois <- dpois(x=xx, lambda = lmb)
+plot(wpois)
+```
+
+* what is probability of 3 visits?
+* what is probability of 3 visits or less?
+* what is probability of more than 10 visits?
+
+```{r}
+w1 <- 3
+lmb <- 10
+wdpois <- dpois(x=w1, lambda=lmb)
+print(paste0("3 visits: ", wdpois*100, " percent"))
+
+wppois <- ppois(q=w1, lambda = lmb)
+print(paste0(w1, " visits or less: ", wppois*100, " percent"))
+
+w1 <- 12
+wppois <- ppois(q=w1, lambda = lmb, lower.tail=FALSE)
+print(paste0("More than ",w1, " visits: ", wppois*100, " percent"))
+
+```
+
+Based on the above distribution, what if you wanted to know how many visits per day?
+
+* create data frame for distribution based on minute
+* multiply up
+* (not sure if this is legit, though?)
+
+```{r}
+vpm <- 10
+df_pois <- data.frame(visits=c(1:24))
+#df_pois$prob <- dpois(x=df_pois$visits, lambda=10)
+df_pois <- df_pois %>% mutate(
+  prob=dpois(x=visits, lambda=vpm),
+  cprob=ppois(q=visits, lambda=vpm)
+)
+
+plot(df_pois$prob)
+plot(df_pois$cprob)
+
+df_pois <- df_pois %>% mutate(
+  visitsd=visits*60*24
+)
+
+ggplot(df_pois, aes(x=visitsd, y=prob))+geom_line()
+```
+
+Or to simulate the data...
+
+```{r}
+nn <- 1000
+df_pois_sim <- data.frame(vpms=rpois(n=nn, lambda=vpm))
+df_pois_sim <- df_pois_sim %>% mutate(
+  vpd=vpms*60*24
+)
+ggplot(df_pois_sim, aes(x=vpms))+geom_histogram(binwidth = 1)
+## set bindwidth by calc
+bw <- (max(df_pois_sim$vpd)-min(df_pois_sim$vpd))/15
+## plot vpd
+ggplot(df_pois_sim, aes(x=vpd))+geom_histogram(binwidth=bw)
+```
+
+
 ### Gamma family
 
 Gamma is actually a family of distributions. It seems to offer better replication of skewed distributions than Poisson.

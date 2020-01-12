@@ -1,0 +1,178 @@
+---
+title: "Monte Carlo Simulation Basics and beyond"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(lubridate)
+
+```
+
+
+# Overview
+
+Intention here is to provide reference guide for simulations, starting with some basic examples and building in complexity from there. Along the way key principles will be highlighted.
+
+Where possible, template-style examples will be developed that can be re-purposed for other situtaions.
+
+# What is Monte Carlo simulation?
+
+From: https://en.wikipedia.org/wiki/Monte_Carlo_method
+
+"Monte Carlo methods, or Monte Carlo experiments, are a broad class of computational algorithms that rely on repeated random sampling to obtain numerical results. The underlying concept is to use randomness to solve problems that might be deterministic in principle."
+
+"The main idea behind this method is that the results are computed based on repeated random sampling and statistical analysis. The Monte Carlo simulation is, in fact, random experimentations, in the case that, the results of these experiments are not well known. Monte Carlo simulations are typically characterized by many unknown parameters, many of which are difficult to obtain experimentally."
+
+*Note that according to wikipedia, there is no consensus on how Monte Carlo should be defined.*
+
+# Why Do Monte Carlo Simulations?
+
+Simulations are used to recreate a process multiple times and calculate outcomes when it is not practical or accurate to do so using probability calculations.
+
+Purpose of mathematical simulation is to try to better understand the likely outcomes of a process with variation in the components of the process. The simulation is used to calculating the outcome of the process a large number of times using different combinations of component values and analyzing the resulting output. 
+
+The objective is to provide a more realistic assessment than just calculating the most likely outcome based on averages, as this tends to provide a single number without a sense of the full range and likelihood of possibilities. The nature of a given process may also not lend itself to using average calculations, even with confidence intervals.
+
+Or here's how Stanislaw Ulam, one of the first to put Monte Carlo simulations into practice, explains his inspiration in the 1940's:
+from: https://en.wikipedia.org/wiki/Monte_Carlo_method 
+
+"The first thoughts and attempts I made to practice [the Monte Carlo Method] were suggested by a question which occurred to me in 1946 as I was convalescing from an illness and playing solitaires. The question was what are the chances that a Canfield solitaire laid out with 52 cards will come out successfully? After spending a lot of time trying to estimate them by pure combinatorial calculations, I wondered whether a more practical method than "abstract thinking" might not be to lay it out say one hundred times and simply observe and count the number of successful plays. This was already possible to envisage with the beginning of the new era of fast computers..."
+
+# How does this differ from 'what-if' scenarios?
+
+The key thing with Monte Carlo simulation is the use of probabilistic distributions to model the process, thus yielding probabilistic distribution of outcomes.
+
+This is different than a simple 'what-if' scenario using single-point estimates, or using a set of best/medium/worst-case scenarios and comparing them. These provide limited set of comparisons and are usually either evenly-weighted or weighted by 'expert opinion'. 
+
+In contrast, results of Monte Carlo simulation takes into account mathematical probabilities (even if they are estimated) and range of outcomes is based on likelihoods calculated over hundreds, thousands, or millions of repeated trials. 
+
+# When to use Monte Carlo simulation?
+
+Monte Carlo Simulations are most useful the system is too complex to model with simple 'what-if' scenarios and when other statistical methods for calculating probabilities don't apply. This can be due to:
+
+* probabilistic distribution in possible values of different components can be estimated but don't necessarily fit theoretical distributions, like binomial, normal distribution, poisson, exponential, etc. 
+* upper, lower, or conditional limits to the range of values need to be factored in to calculations and therefore affect probabilistic distribution
+* large number of components and combinations that make it impractical to calculate probabilities
+
+# How to do Monte Carlo simulation
+
+Obviously there are lots of details, but at a general level...
+
+from: https://en.wikipedia.org/wiki/Monte_Carlo_method
+
+"Monte Carlo methods vary, but tend to follow a particular pattern:
+
+1. Define a domain of possible inputs
+2. Generate inputs randomly from a probability distribution over the domain
+3. Perform a deterministic computation on the inputs
+4. Aggregate the results"
+
+# Simple Examples
+
+## Website Conversions from Video marketing
+
+1. Define a domain of possible inputs:
+
+* number of video views
+* number of click-throughs to website
+* number of click-throughs that result in conversion
+
+2. Generate inputs randomly from a probability distribution
+
+* video views: 
+
+```{r}
+## distribution: assumed to be normal
+mean_view <- 10000
+sd_view <- mean_view*.1
+## number of trials
+nn <- 1000
+views <- rnorm(n=nn, mean=mean_view, sd=sd_view)
+
+hist(views)
+```
+
+* click-throughs based on CTR
+
+```{r}
+## distribution: estimated normal
+mean_ctr <- .025
+sd_ctr <- mean_ctr*0.2
+## was going to use these to set limits but realized that this throws off probabilities - will revist
+#limit_min <- 0.015
+#limit_max <- 0.035 
+## number of trials
+nn <- 1000
+ctr <- rnorm(n=nn, mean=mean_ctr, sd=sd_ctr)
+
+hist(ctr)
+```
+
+* click-throughs that result in conversion
+
+```{r}
+## distribution: even between upper and lower limit
+limit_min <- 10
+limit_max <- 25
+nn <- 1000
+cr <- runif(n=nn, min=limit_min, max=limit_max)/100
+hist(cr)
+```
+
+3. Perform a deterministic computation on the inputs
+
+Above are examples of generating the random numbers for the components. For the Monte Carlo simulation to work, we need to calculate the combinations together, not separately.
+
+```{r}
+## build a table one row at a time 
+df_video_conversion <- data.frame()
+sims <- 10000
+for(s in 1:sims){
+nn <- 1
+#views <- rnorm(n=nn, mean=mean_view, sd=sd_view)
+#ctr <- rnorm(n=nn, mean=mean_ctr, sd=sd_ctr)
+#cr <- runif(n=nn, min=limit_min, max=limit_max)/100
+df_sim <- data.frame(
+  views=rnorm(n=nn, mean=mean_view, sd=sd_view),
+  ctr=rnorm(n=nn, mean=mean_ctr, sd=sd_ctr),
+  cr=runif(n=nn, min=limit_min, max=limit_max)/100
+)
+df_sim <- df_sim %>% mutate(
+  conversions=views*ctr*cr
+)
+df_video_conversion <- bind_rows(df_video_conversion, df_sim)
+}
+```
+
+4. Aggregate the results
+
+Review and analyze the results to understand the range of probable outcomes:
+
+```{r}
+## stats for lines
+ref_mean <- mean(df_video_conversion$conversions)
+ref_med <- median(df_video_conversion$conversions)
+ref_q1 <- quantile(df_video_conversion$conversions, 0.25)
+ref_q3 <- quantile(df_video_conversion$conversions, 0.75)
+
+ggplot(df_video_conversion, aes(x=conversions))+geom_histogram()+
+  geom_vline(xintercept=ref_mean, color='red')+
+  geom_vline(xintercept=ref_med, color='blue')+
+  geom_vline(xintercept=ref_q1)+
+  geom_vline(xintercept = ref_q3)+
+  theme_bw()+ggtitle(label='Probable # of Conversions', 
+                     subtitle=paste0(sims, " simulations"))
+
+```
+
+* Average: `r ref_mean`
+* Median: `r ref_med`
+* IQR: from `r ref_q1` to `r ref_q3`
+

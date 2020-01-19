@@ -176,3 +176,10 @@ ggplot(df_video_conversion, aes(x=conversions))+geom_histogram()+
 * Median: `r ref_med`
 * IQR: from `r ref_q1` to `r ref_q3`
 
+Compare to calculation using averages
+
+```{r}
+conv_calc <- mean_view * mean_ctr * mean(c(limit_max, limit_min))/100
+```
+
+Calculated average conversions: `r conv_calc`

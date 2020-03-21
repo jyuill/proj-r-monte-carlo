@@ -74,6 +74,9 @@ ggplot(df_sdtsim, aes(x=mean_time))+geom_histogram()+theme_classic()
 ggplot(df_sdtsim, aes(x=max_time))+geom_histogram()+theme_classic()
 
 ## combined histogram
-ggplot(df_sdtsim, aes(x=mean_time))+geom_histogram()+
-  geom_histogram(aes(x=max_time))+
+ggplot(df_sdtsim, aes(x=mean_time))+geom_histogram(fill='blue', alpha=0.4)+
+  geom_histogram(aes(x=max_time), fill='orange', alpha=0.4)+
+  geom_vline(xintercept=mean(df_sdtsim$mean_time))+
+  geom_vline(xintercept = mean(df_sdtsim$max_time))+
+  scale_y_continuous(expand=c(0,0))+
   theme_classic()

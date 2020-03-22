@@ -30,9 +30,8 @@ Consider factors that will affect spread of virus:
 
 #### Set up parameters
 
-```{r}
+```{r, echo=TRUE}
 ## set parameters
-#ncases <- 100 added in loop
 rate_d_m <- 0.2
 rate_d_sd <- 0.08
 
@@ -71,7 +70,7 @@ df_vir_growth$sim <- as.factor(df_vir_growth$sim)
 ```{r}
 ## originally copied from prev chunk
 
-nsims <- 20 ## number of simulations
+nsims <- 100 ## number of simulations
 #s <- 1 ## starting sim identifier number
 
 ## set up empty data frame with needed cols
@@ -115,8 +114,18 @@ df_vir_smry_day <- df_vir_growth %>%
 
 ggplot(df_vir_growth, aes(x=day, y=cases, color=sim))+geom_line()+
   geom_line(df_vir_smry_day, mapping=aes(x=day, y=mean_cases, color='mean'), size=2)+
-  scale_y_continuous(labels=comma)
+  scale_y_continuous(labels=comma)+
+  theme(legend.position = 'none')
 
+```
+
+
+
+Boxplot view to show distribution by day:
+
+```{r}
+df_vir_growth$day <- as.factor(df_vir_growth$day)
+ggplot(df_vir_growth, aes(x=day, y=cases))+geom_boxplot()
 ```
 
 #### Summary stats at final day in sim:
@@ -127,19 +136,19 @@ df_vir_smry <- df_vir_growth %>% filter(day==days) %>%
                               sd_cases=sd(cases),
                               iqlow_cases=quantile(cases, 0.25),
                               iqup_cases=quantile(cases, 0.75))
+format(df_vir_smry$mean_cases, digits=1, nsmall=1, big.mark=",")
+
 ```
 
 At day `r df_vir_smry$day`: <br />
 
-Mean cases: `r df_vir_smry$mean_cases` <br />
-IQR: `r df_vir_smry$iqlow_cases` - `r df_vir_smry$iqup_cases` <br />
-1 sd below: `r df_vir_smry$mean_cases - df_vir_smry$sd_cases` <br />
-1 sd above: `r df_vir_smry$mean_cases + df_vir_smry$sd_cases`
-
-Boxplot view to show distribution by day:
+Mean cases: `r format(df_vir_smry$mean_cases, digits=1, nsmall=1, big.mark=",")` <br />
+IQR: `r format(df_vir_smry$iqlow_cases, digits=1, nsmall=1, big.mark="," )` - `r format(df_vir_smry$iqup_cases, digits=1, nsmall=1, big.mark="," )` <br />
+1 sd below: `r format(df_vir_smry$mean_cases - df_vir_smry$sd_cases, digits=1, nsmall=1, big.mark=",")` <br />
+1 sd above: `r format(df_vir_smry$mean_cases + df_vir_smry$sd_cases, digits=1, nsmall=1, big.mark=",")`
 
 ```{r}
-df_vir_growth$day <- as.factor(df_vir_growth$day)
-ggplot(df_vir_growth, aes(x=day, y=cases))+geom_boxplot()
+df_vir_last <- df_vir_growth %>% filter(day==days)
+ggplot(df_vir_last, aes(x=cases))+geom_histogram(bins=8)
 ```
 

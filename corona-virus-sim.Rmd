@@ -1,0 +1,145 @@
+---
+title: "Corona Virus Sim"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(tidyverse)
+library(scales)
+library(lubridate)
+
+options(scipen = 999)
+
+```
+
+## Attempt to simulation potential trajectories for Corona Virus.
+
+Consider factors that will affect spread of virus:
+
+- number of cases at any given time
+- daily % increase in cases, and how that changes over time
+- R0: rate at which virus spreads; on average, how many others are infected by each person who gets the disease
+
+### Simple, limited example
+
+#### Set up parameters
+
+```{r}
+## set parameters
+#ncases <- 100 added in loop
+rate_d_m <- 0.2
+rate_d_sd <- 0.08
+
+## number of days to project
+days <- 30
+```
+
+
+```{r}
+df_vir_growth <- data.frame()
+i <- 1
+## create loop for single simulation
+  ncases <- 100
+  df_vir_growth_sim <- data.frame(sim=i, day=0, cases=ncases, newcases=100)
+  df_vir_growth <- bind_rows(df_vir_growth, df_vir_growth_sim)
+  last_cases <- ncases
+for(d in 1:days){
+  #last <- nrow(df_vir_growth)
+  #last_cases <- df_vir_growth[last,3]
+  new_cases <- last_cases * rnorm(mean=rate_d_m, sd=rate_d_sd, n=1) 
+  ttl_cases <- last_cases+new_cases
+  df_vir_grow <- data.frame(sim=i, day=d, cases=ttl_cases+new_cases, newcases=new_cases)
+  df_vir_growth <- bind_rows(df_vir_growth, df_vir_grow)
+  last_cases <- ttl_cases
+}
+df_vir_growth$sim <- as.factor(df_vir_growth$sim)  
+```
+
+
+```{r}
+#ggplot(df_vir_growth, aes(x=day, y=cases, color=sim))+geom_line()
+```
+
+### Create simulation with multiple examples
+
+```{r}
+## originally copied from prev chunk
+
+nsims <- 20 ## number of simulations
+#s <- 1 ## starting sim identifier number
+
+## set up empty data frame with needed cols
+#df_vir_growth <- data.frame(sim=1, day=0, cases=ncases, newcases=100)
+df_vir_growth <- data.frame()
+
+## create loop for each sim
+for(i in 1:nsims){
+## create loop for single simulation
+  ncases <- 100
+  df_vir_growth_sim <- data.frame(sim=i, day=0, cases=ncases, newcases=100, rate=1)
+  df_vir_growth <- bind_rows(df_vir_growth, df_vir_growth_sim)
+  last_cases <- ncases
+for(d in 1:days){
+  #last <- nrow(df_vir_growth)
+  #last_cases <- df_vir_growth[last,3]
+  grate <- max(0.01, rnorm(mean=rate_d_m, sd=rate_d_sd, n=1))
+  new_cases <- last_cases * grate
+  ttl_cases <- last_cases+new_cases
+  df_vir_grow <- data.frame(sim=i, day=d, cases=ttl_cases+new_cases, newcases=new_cases, rate=grate)
+  df_vir_growth <- bind_rows(df_vir_growth, df_vir_grow)
+  last_cases <- ttl_cases
+}
+
+}
+#df_vir_growth$day <- as.factor(df_vir_growth$day)
+df_vir_growth$sim <- as.factor(df_vir_growth$sim)
+```
+
+```{r}
+## get means for each week
+df_vir_smry_day <- df_vir_growth %>%  
+  group_by(day) %>% summarize(mean_cases=mean(cases),
+                              sd_cases=sd(cases),
+                              iqlow_cases=quantile(cases, 0.25),
+                              iqup_cases=quantile(cases, 0.75))
+```
+
+
+```{r}
+
+ggplot(df_vir_growth, aes(x=day, y=cases, color=sim))+geom_line()+
+  geom_line(df_vir_smry_day, mapping=aes(x=day, y=mean_cases, color='mean'), size=2)+
+  scale_y_continuous(labels=comma)
+
+```
+
+#### Summary stats at final day in sim:
+
+```{r}
+df_vir_smry <- df_vir_growth %>% filter(day==days) %>% 
+  group_by(day) %>% summarize(mean_cases=mean(cases),
+                              sd_cases=sd(cases),
+                              iqlow_cases=quantile(cases, 0.25),
+                              iqup_cases=quantile(cases, 0.75))
+```
+
+At day `r df_vir_smry$day`: <br />
+
+Mean cases: `r df_vir_smry$mean_cases` <br />
+IQR: `r df_vir_smry$iqlow_cases` - `r df_vir_smry$iqup_cases` <br />
+1 sd below: `r df_vir_smry$mean_cases - df_vir_smry$sd_cases` <br />
+1 sd above: `r df_vir_smry$mean_cases + df_vir_smry$sd_cases`
+
+Boxplot view to show distribution by day:
+
+```{r}
+df_vir_growth$day <- as.factor(df_vir_growth$day)
+ggplot(df_vir_growth, aes(x=day, y=cases))+geom_boxplot()
+```
+

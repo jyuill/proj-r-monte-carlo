@@ -1,0 +1,172 @@
+---
+title: "Restaurant Example"
+author: "John Yuill"
+date: "January 5, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+library(tidyverse)
+library(scales)
+
+
+theme_set(theme_light())
+options(scipen = 10)
+```
+
+Example based on restaurant case in 'Probability Quick Study'
+
+## Decision Problem
+
+Restauranteur has decided to open a new restaurant and needs to decide if it should be large or small.
+
+Basic case presented in quick study guide:
+
+* Probability of high demand: 60%
+* Probability of low demand: 40%
+* Estimated revune for large restaurant with high demand: $500K
+* Large resto, low demand: -$200K
+* Small resto, high demand: $200K
+* Small resto, low demand: -$50K
+
+Which restaurant size has highest expected revenue?
+
+## Probability Calculation
+
+```{r}
+## demand probabilities
+prob_high <- 0.6
+prob_low <- 1-prob_high
+
+## revenue scenarios
+lg_rev_high <- 500000
+lg_rev_low <- -200000
+sm_rev_high <- 200000
+sm_rev_low <- -50000
+
+## calc expected value of each scenario
+ev_lg <- (prob_high*lg_rev_high)+(prob_low*lg_rev_low)
+ev_sm <- (prob_high*sm_rev_high)+(prob_low*sm_rev_low)
+
+```
+
+Results: 
+
+```{r}
+## create table
+df_evs <- data.frame(size=c('large','small'),
+                  expected_revenue=c(ev_lg,ev_sm))
+print(df_evs)
+```
+
+## Recommendation (Initial)
+
+```{r}
+rec <- ifelse(ev_lg>ev_sm, 'go large','keep it small')
+```
+
+Recommendation, based on expected revenue from probabilities and estimates provided, is to: **`r rec`**
+
+BUT...this is a VERY simplistic analysis with limited set of fixed assumptions...
+
+## Expanding Scenarios: Monte Carlo Analysis
+
+The two components provided with definite values are actually uncertainties. As such, distribution of values can be introduced to provide richer analysis of potential outcomes. This can improve understanding of the characteristics of the decision problem and increase likelihood of making a profitable decision.
+
+Basically, this involves construction a model with more realistic assumptions, relative to uncertainties.
+
+Simple Components:
+
+* **Demand**: originally only 1 probability distribution between high or low demand
+* **Revenue**: single fixed amount for each size and demand combination
+
+For each of these, we can provide more nuance with probability distributions and simulation.
+
+Note that a missing element here (which may be incorporated into revenue) is cost: since a larger restaurant will cost more, this is another risk factor (source of uncertainty). 
+
+### Set number of simulations
+
+Referenced mulitple places in process below.
+
+```{r}
+nsim <- 500
+```
+
+### Demand probability scenarios
+
+```{r}
+set.seed(105)
+
+## create a distribution for probability of high demand, based arount the original 60% probability
+prob_high_dist <- rnorm(nsim, mean=0.6, sd=0.1)
+#summary(prob_high_dist)
+prob_low_dist <- 1-prob_high_dist
+```
+
+### Simulation #1
+
+Set up sim based on distribution in probability of high vs low demand
+
+```{r}
+## original calc expected value of each scenario
+#ev_lg <- (prob_high*lg_rev_high)+(prob_low*lg_rev_low)
+#ev_sm <- (prob_high*sm_rev_high)+(prob_low*sm_rev_low)
+
+df_ev_lg_sim_all <- data.frame()
+df_ev_sm_sim_all <- data.frame()
+
+for(s in 1:nsim){
+  ev_lg_sim <- (prob_high_dist[s]*lg_rev_high)+(prob_low_dist[s]*lg_rev_low)
+  df_ev_lg_sim <- data.frame(size="large", sim=s, 
+                             prob_high=prob_high_dist[s],
+                             rev_high=lg_rev_high,
+                             rev_low=lg_rev_low,
+                             revenue=ev_lg_sim)
+  df_ev_lg_sim_all <- bind_rows(df_ev_lg_sim_all, df_ev_lg_sim)
+  ev_sm_sim <- (prob_high_dist[s]*sm_rev_high)+(prob_low_dist[s]*sm_rev_low)
+  df_ev_sm_sim <- data.frame(size="small", sim=s, 
+                             prob_high=prob_high_dist[s],
+                             rev_high=sm_rev_high,
+                             rev_low=sm_rev_low,
+                             revenue=ev_sm_sim)
+  df_ev_sm_sim_all <- bind_rows(df_ev_sm_sim_all, df_ev_sm_sim)
+}
+df_ev_sim_all <- bind_rows(df_ev_lg_sim_all, df_ev_sm_sim_all)
+
+```
+
+#### Check Sim Results
+
+```{r}
+## get summaries for each size to use as reference lines on charts
+df_ev_sim_all_sum <- df_ev_sim_all %>% group_by(size) %>% 
+                        summarize(mean_rev=mean(revenue),
+                                  sd_rev=sd(revenue)) %>% 
+                        mutate(lower_95=mean_rev-sd_rev,                                                                  upper_95=mean_rev+sd_rev)
+
+df_ev_sim_all %>% ggplot(aes(x=revenue))+geom_histogram()+
+  geom_vline(data=df_ev_sim_all_sum, aes(xintercept=mean_rev), color='green')+
+  geom_vline(data=df_ev_sim_all_sum, aes(xintercept=lower_95), color='red')+
+  geom_vline(data=df_ev_sim_all_sum, aes(xintercept=upper_95), color='red')+
+  facet_grid(size~.)+
+  scale_x_continuous(labels=comma)+
+  labs(title='Distribution of Expected Revenue by Restaurant Size')
+  
+```
+
+```{r}
+df_ev_sim_all_sum
+```
+
+
+### Revenue distribution
+
+Introduce probability distributions for revenue to add further nuance to simulation.
+
+```{r}
+
+```

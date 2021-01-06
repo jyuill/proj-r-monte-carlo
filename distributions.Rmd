@@ -8,13 +8,16 @@ output:
 ## Exploring distributions and related probability concepts {.tabset}
 
 ```{r INITIAL, include=FALSE}
-knitr::opts_chunk$set(echo=FALSE,
+knitr::opts_chunk$set(echo=TRUE,
                       message=FALSE,
                       warning=FALSE)
 
 library(tidyverse)
 library(lubridate)
 library(scales)
+
+## limit use of scientific notation for readability
+options(scipen = 99)
 
 ```
 
@@ -126,7 +129,7 @@ ggplot(df_norm_01, aes(x=values, y=pctl))+geom_line()+
 What is the probability of value X as an outcome?
 
 ```{r PROB 1}
-options(scipen = 99)
+
 x <- 40
 dnorm(x=x, mean=m, sd=std)
 
@@ -134,7 +137,7 @@ dnorm(x=x, mean=m, sd=std)
 
 A single number in a continous distribution, so the probability will be low.
 
-What is the probability of an outcome of X or lower?
+What is the PROBABILITY of an outcome of X or LOWER?
 
 ```{r PROB 2}
 x <- mean(df_norm_01$values)-sd(df_norm_01$values)
@@ -142,7 +145,7 @@ pnorm(q=x, mean=m, sd=std)
 
 ```
 
-what is the probability of an outcome between X and Y?
+what is the PROBABILITY of an outcome BETWEEN X and Y?
 
 ```{r PROB 3}
 x <- x
@@ -154,6 +157,52 @@ pxy <- 1-(p_lower+p_upper)
 ```
 
 Probability of an outcome between `r x` and `r y` is: `r pxy`.
+
+What is PROBABILITY of X or HIGHER?
+
+Probability of outcome higher than `r y` is: `r p_upper`. (lower.tail=FALSE gets upper tail)
+
+How many STANDARD DEVIATIONS is a given number from the mean?
+
+```{r}
+## How far is x from mean, in std devs?
+x
+(x-m)/std
+
+```
+
+
+What numberS and STANDARD DEVIATIONS match different PERCENTILES?
+
+```{r}
+## How far is 95th percentile from mean, in std devs?
+## 95th percentile
+pct <- 0.95
+pctle <- paste0(pct*100,'th percentile')
+pctle
+qtle <- qnorm(p=pct, mean=m, sd=std)
+qtle
+paste0(round((qtle-m)/std,2), ' std devs')
+
+## 97.5th percentile
+pct <- 0.975
+pctle <- paste0(pct*100,'th percentile')
+pctle
+qtle <- qnorm(p=pct, mean=m, sd=std)
+qtle
+paste0(round((qtle-m)/std,2), ' std devs')
+
+## 99th percentile
+pct <- 0.99
+pctle <- paste0(pct*100,'th percentile')
+pctle
+qtle <- qnorm(p=pct, mean=m, sd=std)
+qtle
+paste0(round((qtle-m)/std,2), ' std devs')
+```
+
+* 1.64 standard deviations from the mean is the largest change you will get 95% of the time. This is looking at distance from the mean on a one-sided basis. 1.96 standard deviations cover 95% of the total range of values above/below the mean in a normal distribution, but that is actually the 97.5% percentile with 2.5% on each of the upper and lower tails. 
+
 
 ### Poisson
 

@@ -201,8 +201,10 @@ qtle
 paste0(round((qtle-m)/std,2), ' std devs')
 ```
 
-* 1.64 standard deviations from the mean is the largest change you will get 95% of the time. This is looking at distance from the mean on a one-sided basis. 1.96 standard deviations cover 95% of the total range of values above/below the mean in a normal distribution, but that is actually the 97.5% percentile with 2.5% on each of the upper and lower tails. 
-
+* 1.64 standard deviations from the mean is the largest change you will get 95% of the time. This is looking at distance from the mean on a one-sided basis. 
+* 1.96 standard deviations cover 95% of the total range of values above/below the mean in a normal distribution, but that is actually the 97.5% percentile with 2.5% on each of the upper and lower tails. 
+* one-tail (one-sided) used for things like financial risk management when you are most focused on one direction (downside)
+    + so 99% of the time you won't see loss worse than 2.33 std dev
 
 ### Poisson
 
